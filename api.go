@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 )
@@ -30,7 +31,15 @@ func NewApiServer(addr string, store Storage) *ApiServer {
 
 func (s *ApiServer) handleGetAccount(c echo.Context) error {
 	vars := c.Param("id")
-	return c.JSON(http.StatusOK, vars)
+	id, err := strconv.Atoi(vars)
+	if err != nil {
+		return err
+	}
+	acc, err := s.store.GetAccountById(id)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, acc)
 }
 
 func (s *ApiServer) handleCreateAccount(c echo.Context) error {

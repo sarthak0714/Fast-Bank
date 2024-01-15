@@ -63,6 +63,12 @@ func (s *PGStore) CreateAccount(acc *Account) error {
 }
 
 func (s *PGStore) DeleteAccount(id int) error {
+	q := `delete from account where id = ?`
+	res, err := s.db.Query(q, id)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%+v\n", res)
 	return nil
 }
 
@@ -71,5 +77,19 @@ func (s *PGStore) UpdateAccount(id int) error {
 }
 
 func (s *PGStore) GetAccountById(id int) (*Account, error) {
-	return nil, nil
+	q := `select * from account where id =?`
+	res, err := s.db.Query(q, id)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("%+v\n", res)
+	acc := &Account{}
+	for res.Next() {
+		er := res.Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.Balance, &acc.CreatedAt)
+		if er != nil {
+			return nil, er
+		}
+	}
+	return acc, nil
 }
