@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 
 	_ "github.com/lib/pq"
 )
@@ -11,6 +10,7 @@ type Storage interface {
 	CreateAccount(*Account) error
 	DeleteAccount(int) error
 	UpdateAccount(int) error
+	GetAccounts() ([]*Account, error)
 	GetAccountById(int) (*Account, error)
 }
 
@@ -51,25 +51,18 @@ func (s *PGStore) CreateAccountTable() error {
 
 func (s *PGStore) CreateAccount(acc *Account) error {
 	q := `insert into account(fname,lname,ac_number,balance,created_at) values($1,$2,$3,$4,$5)`
-	res, err := s.db.Query(q, acc.Fname, acc.Lname, acc.AcNumber, acc.Balance, acc.CreatedAt)
+	_, err := s.db.Query(q, acc.Fname, acc.Lname, acc.AcNumber, acc.Balance, acc.CreatedAt)
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("%+v\n", res)
-	fmt.Println("called")
 
 	return nil
 }
 
 func (s *PGStore) DeleteAccount(id int) error {
-	q := `delete from account where id = ?`
-	res, err := s.db.Query(q, id)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%+v\n", res)
-	return nil
+	q := "delete from account where id = $1"
+	_, err := s.db.Query(q, id)
+	return err
 }
 
 func (s *PGStore) UpdateAccount(id int) error {
@@ -77,19 +70,39 @@ func (s *PGStore) UpdateAccount(id int) error {
 }
 
 func (s *PGStore) GetAccountById(id int) (*Account, error) {
-	q := `select * from account where id =?`
-	res, err := s.db.Query(q, id)
+	q := "select * from account where id=$1"
+	rows, err := s.db.Query(q, id)
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("%+v\n", res)
-	acc := &Account{}
-	for res.Next() {
-		er := res.Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.Balance, &acc.CreatedAt)
-		if er != nil {
-			return nil, er
+	acc := new(Account)
+	for rows.Next() {
+		err = rows.Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.Balance, &acc.CreatedAt)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return acc, nil
+}
+
+func (s *PGStore) GetAccounts() ([]*Account, error) {
+	rows, err := s.db.Query("select * from account")
+	if err != nil {
+		return nil, err
+	}
+	accounts := []*Account{}
+	for rows.Next() {
+		acc, err := s.ScanAccounts(rows)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, acc)
+	}
+	return accounts, nil
+}
+
+func (s *PGStore) ScanAccounts(rows *sql.Rows) (*Account, error) {
+	acc := new(Account)
+	err := rows.Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.Balance, &acc.CreatedAt)
+	return acc, err
 }
