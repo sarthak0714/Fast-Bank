@@ -42,6 +42,7 @@ func (s *PGStore) CreateAccountTable() error {
 		fname varchar(50),
 		lname varchar(50),
 		ac_number serial,
+		password varchar(50),
 		balance serial,
 		created_at timestamp
 	)`

@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type ApiServer struct {
@@ -15,11 +17,18 @@ type ApiServer struct {
 
 func (s *ApiServer) Run() {
 	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	e.Use(echojwt.WithConfig(echojwt.Config{
+		SigningKey: []byte("secret"),
+	}))
+
 	e.GET("/account", s.handleGetAccount)
 	e.POST("/account", s.handleCreateAccount)
 	e.GET("/account/:id", s.handleGetAccountById)
 	e.DELETE("/account/:id", s.handleDeleteAccount)
-	e.POST("/transfer/:AccNo",s.handleTransfer)
+	e.POST("/transfer/:AccNo", s.handleTransfer)
 	e.HideBanner = true
 	log.Fatal(e.Start(s.listenAddr))
 }
@@ -56,7 +65,10 @@ func (s *ApiServer) handleCreateAccount(c echo.Context) error {
 	if err := c.Bind(&accReq); err != nil {
 		return err
 	}
-	acc := NewAccount(accReq.Fname, accReq.Lname)
+	acc, er := NewAccount(accReq.Fname, accReq.Lname, accReq.Password)
+	if er != nil {
+		return er
+	}
 	if err := s.store.CreateAccount(acc); err != nil {
 		return err
 	}
