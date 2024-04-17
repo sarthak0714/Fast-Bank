@@ -1,11 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
-	echojwt "github.com/labstack/echo-jwt/v4"
+	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -17,16 +18,12 @@ type ApiServer struct {
 
 func (s *ApiServer) Run() {
 	e := echo.New()
-	e.Use(middleware.Logger())
+	// e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-
-	e.Use(echojwt.WithConfig(echojwt.Config{
-		SigningKey: []byte("secret"),
-	}))
 
 	e.GET("/account", s.handleGetAccount)
 	e.POST("/account", s.handleCreateAccount)
-	e.GET("/account/:id", s.handleGetAccountById)
+	e.GET("/account/:id", withJWTRequired(s.handleGetAccountById))
 	e.DELETE("/account/:id", s.handleDeleteAccount)
 	e.POST("/transfer/:AccNo", s.handleTransfer)
 	e.HideBanner = true
@@ -90,5 +87,31 @@ func (s *ApiServer) handleTransfer(c echo.Context) error {
 		return err
 	}
 
+	user := c.Get("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+	id := claims["id"].(int)
+
+	senderAccount, err := s.store.GetAccountById(id)
+	if err != nil {
+		return err
+	}
+	if senderAccount.Balance < transferReq.Amount {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Insufficient balance in sender account"})
+	}
+	remBalance := senderAccount.Balance - transferReq.Amount
+
+	er := s.store.UpdateBalance(id, remBalance)
+	if er != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update sender account"})
+	}
+
 	return c.JSON(http.StatusOK, transferReq)
+}
+
+func withJWTRequired(handler echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		fmt.Println("middleware called")
+		return handler(c)
+	}
+
 }

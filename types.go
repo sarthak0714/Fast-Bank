@@ -25,7 +25,7 @@ type CreateAccountReq struct {
 
 type TransferReq struct {
 	ToAccount int `json:"to_account"`
-	Amount    int `json:"amount"`
+	Amount    int64 `json:"amount"`
 }
 
 func NewAccount(fName, lName, password string) (*Account, error) {

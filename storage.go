@@ -9,9 +9,10 @@ import (
 type Storage interface {
 	CreateAccount(*Account) error
 	DeleteAccount(int) error
-	UpdateAccount(int) error
+	UpdateAccount(*Account) error
 	GetAccounts() ([]*Account, error)
 	GetAccountById(int) (*Account, error)
+	UpdateBalance(int, int64) error
 }
 
 type PGStore struct {
@@ -66,7 +67,21 @@ func (s *PGStore) DeleteAccount(id int) error {
 	return err
 }
 
-func (s *PGStore) UpdateAccount(id int) error {
+func (s *PGStore) UpdateAccount(acc *Account) error {
+	q := `UPDATE account SET fname=$1, lname=$2, epassword=$3, ac_number=$4, balance=$5, created_at=$6 WHERE id=$7`
+	_, err := s.db.Exec(q, acc.Fname, acc.Lname, acc.EPassword, acc.AcNumber, acc.Balance, acc.CreatedAt, acc.Id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *PGStore) UpdateBalance(id int, balance int64) error {
+	q := `UPDATE account Set balance=$1 where id = $2`
+	_, err := s.db.Exec(q, balance, id)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
