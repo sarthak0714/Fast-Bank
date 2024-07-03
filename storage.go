@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"log"
 
 	_ "github.com/lib/pq"
 )
@@ -38,26 +39,27 @@ func (s *PGStore) Init() error {
 }
 
 func (s *PGStore) CreateAccountTable() error {
-	q := `create table if not exists account(
-		id serial primary key,
-		fname varchar(50),
-		lname varchar(50),
-		ac_number serial,
-		password varchar(50),
-		balance serial,
-		created_at timestamp
-	)`
+	q := `CREATE TABLE IF NOT EXISTS account (
+        id SERIAL PRIMARY KEY,
+        fname VARCHAR(50),
+        lname VARCHAR(50),
+        ac_number SERIAL,
+        password VARCHAR(256),
+        balance BIGINT,
+        created_at TIMESTAMP
+    )`
 	_, err := s.db.Exec(q)
 	return err
 }
 
 func (s *PGStore) CreateAccount(acc *Account) error {
-	q := `insert into account(fname,lname,ac_number,balance,created_at) values($1,$2,$3,$4,$5)`
-	_, err := s.db.Query(q, acc.Fname, acc.Lname, acc.AcNumber, acc.Balance, acc.CreatedAt)
+	q := `INSERT INTO account (fname, lname, ac_number, password, balance, created_at) 
+          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+	err := s.db.QueryRow(q, acc.Fname, acc.Lname, acc.AcNumber, acc.EPassword, acc.Balance, acc.CreatedAt).Scan(&acc.Id)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
-
 	return nil
 }
 
@@ -74,6 +76,7 @@ func (s *PGStore) UpdateAccount(acc *Account) error {
 		return err
 	}
 	return nil
+
 }
 
 func (s *PGStore) UpdateBalance(id int, balance int64) error {
@@ -86,26 +89,22 @@ func (s *PGStore) UpdateBalance(id int, balance int64) error {
 }
 
 func (s *PGStore) GetAccountById(id int) (*Account, error) {
-	q := "select * from account where id=$1"
-	rows, err := s.db.Query(q, id)
+	q := "SELECT id, fname, lname, ac_number, password, balance, created_at FROM account WHERE id=$1"
+	acc := new(Account)
+	err := s.db.QueryRow(q, id).Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.EPassword, &acc.Balance, &acc.CreatedAt)
 	if err != nil {
 		return nil, err
-	}
-	acc := new(Account)
-	for rows.Next() {
-		err = rows.Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.Balance, &acc.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
 	}
 	return acc, nil
 }
 
 func (s *PGStore) GetAccounts() ([]*Account, error) {
-	rows, err := s.db.Query("select * from account")
+	rows, err := s.db.Query("SELECT id, fname, lname, ac_number, password, balance, created_at FROM account")
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	accounts := []*Account{}
 	for rows.Next() {
 		acc, err := s.ScanAccounts(rows)
@@ -119,6 +118,6 @@ func (s *PGStore) GetAccounts() ([]*Account, error) {
 
 func (s *PGStore) ScanAccounts(rows *sql.Rows) (*Account, error) {
 	acc := new(Account)
-	err := rows.Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.Balance, &acc.CreatedAt)
+	err := rows.Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.EPassword, &acc.Balance, &acc.CreatedAt)
 	return acc, err
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -18,14 +18,17 @@ type ApiServer struct {
 
 func (s *ApiServer) Run() {
 	e := echo.New()
-	// e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-
+	e.GET("/", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"msg": "works"})
+	})
 	e.GET("/account", s.handleGetAccount)
 	e.POST("/account", s.handleCreateAccount)
-	e.GET("/account/:id", withJWTRequired(s.handleGetAccountById))
-	e.DELETE("/account/:id", s.handleDeleteAccount)
-	e.POST("/transfer/:AccNo", s.handleTransfer)
+	e.POST("/login", s.handleLogin)
+	e.GET("/jwt", s.JwtRoute, JWTMiddleware)
+	e.GET("/account/:id", s.handleGetAccountById, JWTMiddleware)
+	e.DELETE("/account/:id", s.handleDeleteAccount, JWTMiddleware)
+	e.POST("/transfer/:AccNo", s.handleTransfer, JWTMiddleware)
 	e.HideBanner = true
 	log.Fatal(e.Start(s.listenAddr))
 }
@@ -108,10 +111,10 @@ func (s *ApiServer) handleTransfer(c echo.Context) error {
 	return c.JSON(http.StatusOK, transferReq)
 }
 
-func withJWTRequired(handler echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		fmt.Println("middleware called")
-		return handler(c)
+func (s *ApiServer) JwtRoute(c echo.Context) error {
+	claims, ok := c.Get("user").(*JWTClaims)
+	if !ok {
+		return errors.New("failed to get user claims")
 	}
-
+	return c.JSON(http.StatusOK, claims)
 }
