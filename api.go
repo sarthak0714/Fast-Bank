@@ -2,11 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -18,9 +19,10 @@ type ApiServer struct {
 
 func (s *ApiServer) Run() {
 	e := echo.New()
+	e.Use(CustomLogger()) // new
 	e.Use(middleware.Recover())
 	e.GET("/", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{"msg": "works"})
+		return c.JSON(http.StatusOK, map[string]string{"msg": "works", "time": time.Now().UTC().String()})
 	})
 	e.GET("/account", s.handleGetAccount)
 	e.POST("/account", s.handleCreateAccount)
@@ -90,25 +92,46 @@ func (s *ApiServer) handleTransfer(c echo.Context) error {
 		return err
 	}
 
-	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(jwt.MapClaims)
-	id := claims["id"].(int)
+	claims, ok := c.Get("user").(*JWTClaims)
+	if !ok {
+		return echo.ErrUnauthorized
+	}
 
-	senderAccount, err := s.store.GetAccountById(id)
+	senderId := claims.Id
+
+	senderAccount, err := s.store.GetAccountById(senderId)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve sender account")
 	}
+
 	if senderAccount.Balance < transferReq.Amount {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Insufficient balance in sender account"})
-	}
-	remBalance := senderAccount.Balance - transferReq.Amount
-
-	er := s.store.UpdateBalance(id, remBalance)
-	if er != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update sender account"})
+		return echo.NewHTTPError(http.StatusBadRequest, "Insufficient balance in sender account")
 	}
 
-	return c.JSON(http.StatusOK, transferReq)
+	recipientAccount, err := s.store.GetAccountById(transferReq.ToAccount)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve recipient account")
+	}
+
+	senderNewBalance := senderAccount.Balance - transferReq.Amount
+	err = s.store.UpdateBalance(senderId, senderNewBalance)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update sender account")
+	}
+
+	recipientNewBalance := recipientAccount.Balance + transferReq.Amount
+	err = s.store.UpdateBalance(transferReq.ToAccount, recipientNewBalance)
+	if err != nil {
+		s.store.UpdateBalance(senderId, senderAccount.Balance)
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update recipient account")
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message":                "Transfer successful",
+		"transferDetails":        transferReq,
+		"senderRemainingBalance": senderNewBalance,
+		"recipientNewBalance":    recipientNewBalance,
+	})
 }
 
 func (s *ApiServer) JwtRoute(c echo.Context) error {
@@ -117,4 +140,67 @@ func (s *ApiServer) JwtRoute(c echo.Context) error {
 		return errors.New("failed to get user claims")
 	}
 	return c.JSON(http.StatusOK, claims)
+}
+
+const (
+	colorRed       = "\033[31m"
+	colorGreen     = "\033[32m"
+	colorYellow    = "\033[33m"
+	colorBlue      = "\033[34m"
+	colorPurple    = "\033[35m"
+	colorCyan      = "\033[36m"
+	colorGray      = "\033[37m"
+	colorReset     = "\033[0m"
+	colorLightCyan = "\033[96m"
+)
+
+func statusColor(code int) string {
+	switch {
+	case code >= 100 && code < 200:
+		return colorYellow
+	case code >= 200 && code < 300:
+		return colorGreen
+	case code >= 300 && code < 400:
+		return colorRed
+	case code >= 400 && code < 500:
+		return colorBlue
+	case code >= 500:
+		return colorPurple
+	default:
+		return colorReset
+	}
+}
+
+func CustomLogger() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			start := time.Now()
+
+			err := next(c)
+			if err != nil {
+				c.Error(err)
+			}
+
+			req := c.Request()
+			res := c.Response()
+
+			id := req.Header.Get(echo.HeaderXRequestID)
+			if id == "" {
+				id = res.Header().Get(echo.HeaderXRequestID)
+			}
+
+			logMessage := fmt.Sprintf("%s[%s]%s %s%s%s %s%s%s %s%d%s %s%v%s %s",
+				colorLightCyan, time.Now().Format("2006-01-02 15:04:05"), colorReset,
+				colorGray, req.Method, colorReset,
+				colorCyan, req.URL.Path, colorReset,
+				statusColor(res.Status), res.Status, colorReset,
+				colorGray, time.Since(start), colorReset,
+				id,
+			)
+
+			fmt.Println(logMessage)
+
+			return nil
+		}
+	}
 }
