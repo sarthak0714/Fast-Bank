@@ -9,7 +9,7 @@ test:
 
 
 testdbinit:
-	@ docker run --name test -e POSTGRES_PASSWORD=test -p 5433:5433 -d test
+	@sudo docker run --name test -e POSTGRES_PASSWORD=test -p 5433:5432 -d  postgres
 
 dbinit:
 	@sudo docker run --name postgres -e POSTGRES_PASSWORD=jomum -p 5432:5432 -d postgres
