@@ -33,6 +33,14 @@ type JWTClaims struct {
 	Exp int64 `json:"exp"`
 }
 
+type TransferMessage struct {
+	TransferId string `json:"transfer_id"`
+	SenderId   int    `json:"sender_id"`
+	ToAccount  int    `json:"to_account"`
+	Amount     int64  `json:"amount"`
+	Status string `josn:"status"`
+}
+
 func NewAccount(fName, lName, password string) (*Account, error) {
 	encpw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -43,6 +51,7 @@ func NewAccount(fName, lName, password string) (*Account, error) {
 		Lname:     lName,
 		EPassword: string(encpw),
 		AcNumber:  int64(rand.Intn(1000000)),
+		Balance:   1000,
 		CreatedAt: time.Now().UTC(),
 	}, nil
 

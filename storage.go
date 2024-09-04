@@ -1,10 +1,8 @@
 package main
 
 import (
-	"database/sql"
-	"log"
-
-	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type Storage interface {
@@ -14,19 +12,31 @@ type Storage interface {
 	GetAccounts() ([]*Account, error)
 	GetAccountById(int) (*Account, error)
 	UpdateBalance(int, int64) error
+	AddTransfer(*TransferMessage) error
+	GetTransferStatus(string) (string, error)
+
+	UpdateTransferStatus(string, string) error
 }
 
 type PGStore struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
-func NewPGStore() (*PGStore, error) {
-	cstr := "user=postgres dbname=postgres password=jomum sslmode=disable"
-	db, err := sql.Open("postgres", cstr)
+func NewTestStore() (*PGStore, error) {
+	dsn := "host=localhost user=test dbname=test password=test port=5433 sslmode=disable"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-	if err := db.Ping(); err != nil {
+	return &PGStore{
+		db: db,
+	}, nil
+}
+
+func NewPGStore() (*PGStore, error) {
+	dsn := "host=localhost user=postgres dbname=postgres password=jomum port=5432 sslmode=disable"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
 		return nil, err
 	}
 	return &PGStore{
@@ -35,89 +45,55 @@ func NewPGStore() (*PGStore, error) {
 }
 
 func (s *PGStore) Init() error {
-	return s.CreateAccountTable()
-}
+	err := s.db.AutoMigrate(&Account{})
+	if err != nil {
+		return err
+	}
+	return s.db.AutoMigrate(&TransferMessage{})
 
-func (s *PGStore) CreateAccountTable() error {
-	q := `CREATE TABLE IF NOT EXISTS account (
-        id SERIAL PRIMARY KEY,
-        fname VARCHAR(50),
-        lname VARCHAR(50),
-        ac_number SERIAL,
-        password VARCHAR(256),
-        balance BIGINT,
-        created_at TIMESTAMP
-    )`
-	_, err := s.db.Exec(q)
-	return err
 }
 
 func (s *PGStore) CreateAccount(acc *Account) error {
-	q := `INSERT INTO account (fname, lname, ac_number, password, balance, created_at) 
-          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
-	err := s.db.QueryRow(q, acc.Fname, acc.Lname, acc.AcNumber, acc.EPassword, acc.Balance, acc.CreatedAt).Scan(&acc.Id)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	return nil
+	return s.db.Create(acc).Error
 }
 
 func (s *PGStore) DeleteAccount(id int) error {
-	q := "delete from account where id = $1"
-	_, err := s.db.Query(q, id)
-	return err
+	return s.db.Delete(&Account{}, id).Error
 }
 
 func (s *PGStore) UpdateAccount(acc *Account) error {
-	q := `UPDATE account SET fname=$1, lname=$2, epassword=$3, ac_number=$4, balance=$5, created_at=$6 WHERE id=$7`
-	_, err := s.db.Exec(q, acc.Fname, acc.Lname, acc.EPassword, acc.AcNumber, acc.Balance, acc.CreatedAt, acc.Id)
-	if err != nil {
-		return err
-	}
-	return nil
-
+	return s.db.Save(acc).Error
 }
 
 func (s *PGStore) UpdateBalance(id int, balance int64) error {
-	q := `UPDATE account Set balance=$1 where id = $2`
-	_, err := s.db.Exec(q, balance, id)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.db.Model(&Account{}).Where("id = ?", id).Update("balance", balance).Error
 }
 
 func (s *PGStore) GetAccountById(id int) (*Account, error) {
-	q := "SELECT id, fname, lname, ac_number, password, balance, created_at FROM account WHERE id=$1"
-	acc := new(Account)
-	err := s.db.QueryRow(q, id).Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.EPassword, &acc.Balance, &acc.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return acc, nil
+	var acc Account
+	err := s.db.First(&acc, id).Error
+	return &acc, err
 }
 
 func (s *PGStore) GetAccounts() ([]*Account, error) {
-	rows, err := s.db.Query("SELECT id, fname, lname, ac_number, password, balance, created_at FROM account")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	accounts := []*Account{}
-	for rows.Next() {
-		acc, err := s.ScanAccounts(rows)
-		if err != nil {
-			return nil, err
-		}
-		accounts = append(accounts, acc)
-	}
-	return accounts, nil
+	var accounts []*Account
+	err := s.db.Find(&accounts).Error
+	return accounts, err
 }
 
-func (s *PGStore) ScanAccounts(rows *sql.Rows) (*Account, error) {
-	acc := new(Account)
-	err := rows.Scan(&acc.Id, &acc.Fname, &acc.Lname, &acc.AcNumber, &acc.EPassword, &acc.Balance, &acc.CreatedAt)
-	return acc, err
+func (s *PGStore) GetTransferStatus(trxid string) (string, error) {
+	var trx TransferMessage
+	err := s.db.Where("transfer_id = ?", trxid).First(&trx).Error
+	if err != nil {
+		return "", err
+	}
+	return trx.Status, nil
+}
+
+func (s *PGStore) AddTransfer(transferMsg *TransferMessage) error {
+	return s.db.Create(transferMsg).Error
+}
+
+func (s *PGStore) UpdateTransferStatus(trxid, status string) error {
+	return s.db.Model(&TransferMessage{}).Where("transfer_id = ?", trxid).Update("status", status).Error
 }
