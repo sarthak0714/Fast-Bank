@@ -161,9 +161,9 @@ func statusColor(code int) string {
 	case code >= 200 && code < 300:
 		return colorGreen
 	case code >= 300 && code < 400:
-		return colorRed
-	case code >= 400 && code < 500:
 		return colorBlue
+	case code >= 400 && code < 500:
+		return colorRed
 	case code >= 500:
 		return colorPurple
 	default:
@@ -189,11 +189,11 @@ func CustomLogger() echo.MiddlewareFunc {
 				id = res.Header().Get(echo.HeaderXRequestID)
 			}
 
-			logMessage := fmt.Sprintf("%s[%s]%s %s%s%s %s%s%s %s%d%s %s%v%s %s",
+			logMessage := fmt.Sprintf("%s[%s]%s %s%s%s%s%s %s%s%s %s%s%d%s%s %s%v%s %s",
 				colorLightCyan, time.Now().Format("2006-01-02 15:04:05"), colorReset,
-				colorGray, req.Method, colorReset,
+				"\033[1m", colorGray, req.Method, colorReset, "\033[0m",
 				colorCyan, req.URL.Path, colorReset,
-				statusColor(res.Status), res.Status, colorReset,
+				"\033[1m", statusColor(res.Status), res.Status, colorReset, "\033[0m",
 				colorGray, time.Since(start), colorReset,
 				id,
 			)

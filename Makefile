@@ -1,12 +1,12 @@
 build: 
-	go build -o bin/fastbank
+	@go build -o bin/fastbank
 
 run: build
-	./bin/fastbank
+	@./bin/fastbank
 
 test:
-	go test -v ./...
+	@go test -v ./...
 
 dbinit:
-	sudo docker run --name some-postgres -e POSTGRES_PASSWORD=jomum -p 5432:5432 -d postgres
+	@sudo docker run --name some-postgres -e POSTGRES_PASSWORD=jomum -p 5432:5432 -d postgres
 
