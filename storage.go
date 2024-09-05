@@ -14,7 +14,6 @@ type Storage interface {
 	UpdateBalance(int, int64) error
 	AddTransfer(*TransferMessage) error
 	GetTransferStatus(string) (string, error)
-
 	UpdateTransferStatus(string, string) error
 }
 

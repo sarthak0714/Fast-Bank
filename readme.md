@@ -53,6 +53,9 @@ FastBank API implements a basic banking system using Go and echo. It provides es
 - JWT used for API authentication
 - HTTPS recommended for production use
 
+## (SUPPOSED DESIGN)
+![SysDesign](./FastBankSD.png)
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first.
