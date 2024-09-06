@@ -2,26 +2,35 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
-	"encoding/json"
-
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/streadway/amqp"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type ApiServer struct {
-	listenAddr string
-	store      Storage
+	listenAddr         string
+	store              Storage
+	accountService     *AccountService
+	transactionService *TransactionService
+}
+
+func NewApiServer(addr string, store Storage, accService AccountService, trxService TransactionService) *ApiServer {
+	return &ApiServer{
+		listenAddr:         addr,
+		store:              store,
+		accountService:     &accService,
+		transactionService: &trxService,
+	}
 }
 
 func (s *ApiServer) Run() {
+
 	e := echo.New()
 	e.Use(CustomLogger()) // new
 	e.Use(middleware.Recover())
@@ -41,33 +50,22 @@ func (s *ApiServer) Run() {
 	jwtGroup.GET("/transfer/:id", s.getTransferStatus)
 	e.HideBanner = true
 
-	go s.processTransfers()
+	go s.transactionService.ProcessTransfers()
 
 	log.Fatal(e.Start(s.listenAddr))
 }
 
-func NewApiServer(addr string, store Storage) *ApiServer {
-
-	return &ApiServer{
-		listenAddr: addr,
-		store:      store,
-	}
-}
-
 func (s *ApiServer) handleGetAccount(c echo.Context) error {
-	accoutns, err := s.store.GetAccounts()
+	accounts, err := s.accountService.GetAccounts()
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, accoutns)
+	return c.JSON(http.StatusOK, accounts)
 }
 
 func (s *ApiServer) handleGetAccountById(c echo.Context) error {
-	id, er := strconv.Atoi(c.Param("id"))
-	if er != nil {
-		return er
-	}
-	acc, err := s.store.GetAccountById(id)
+	id := c.Param("id")
+	acc, err := s.accountService.GetAccountById(id)
 	if err != nil {
 		return err
 	}
@@ -79,23 +77,20 @@ func (s *ApiServer) handleCreateAccount(c echo.Context) error {
 	if err := c.Bind(&accReq); err != nil {
 		return err
 	}
-	acc, er := NewAccount(accReq.Fname, accReq.Lname, accReq.Password)
-	if er != nil {
-		return er
-	}
-	if err := s.store.CreateAccount(acc); err != nil {
+	acc, err := s.accountService.CreateAccount(accReq)
+	if err != nil {
 		return err
 	}
-
 	return c.JSON(http.StatusOK, acc)
 }
 
 func (s *ApiServer) handleDeleteAccount(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	id := c.Param("id")
+	err := s.accountService.DeleteAccount(id)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, map[string]int{"deleted": id})
+	return c.JSON(http.StatusOK, map[string]string{"message": "Account deleted successfully"})
 }
 
 func (s *ApiServer) handleTransfer(c echo.Context) error {
@@ -124,7 +119,7 @@ func (s *ApiServer) handleTransfer(c echo.Context) error {
 	}
 
 	// Publish
-	err := s.publishTransferMessage(transferMsg)
+	err := s.transactionService.PublishTransferMessage(transferMsg)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to initiate transfer")
 	}
@@ -140,162 +135,32 @@ func (s *ApiServer) handleTransfer(c echo.Context) error {
 	})
 }
 
-func (s *ApiServer) publishTransferMessage(msg TransferMessage) error {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	if err != nil {
+func (s *ApiServer) handleLogin(c echo.Context) error {
+	payload := new(struct {
+		Id       int    `json:"id"`
+		Password string `json:"password"`
+	})
+	if err := c.Bind(payload); err != nil {
 		return err
 	}
-	defer conn.Close()
 
-	ch, err := conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer ch.Close()
-
-	q, err := ch.QueueDeclare(
-		"transfers", // name
-		true,        // durable
-		false,       // delete when unused
-		false,       // exclusive
-		false,       // no-wait
-		nil,         // arguments
-	)
+	user, err := s.accountService.store.GetAccountById(payload.Id)
 	if err != nil {
 		return err
 	}
 
-	body, err := json.Marshal(msg)
+	if err := bcrypt.CompareHashAndPassword([]byte(user.EPassword), []byte(payload.Password)); err != nil {
+		return echo.ErrUnauthorized
+	}
+
+	token, err := generateJWT(user.Id)
 	if err != nil {
 		return err
 	}
 
-	err = ch.Publish(
-		"",     // exchange
-		q.Name, // routing key
-		false,  // mandatory
-		false,  // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-		})
-
-	return err
-}
-
-func (s *ApiServer) processTransfers() {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
-	}
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Failed to open a channel: %v", err)
-	}
-	defer ch.Close()
-
-	q, err := ch.QueueDeclare(
-		"transfers", // name
-		true,        // durable
-		false,       // delete when unused
-		false,       // exclusive
-		false,       // no-wait
-		nil,         // arguments
-	)
-	if err != nil {
-		log.Fatalf("Failed to declare a queue: %v", err)
-	}
-
-	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		true,   // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		log.Fatalf("Failed to register a consumer: %v", err)
-	}
-
-	forever := make(chan bool)
-
-	go func() {
-		for d := range msgs {
-			var transferMsg TransferMessage
-			err := json.Unmarshal(d.Body, &transferMsg)
-			if err != nil {
-				log.Printf("Error decoding message: %v", err)
-				continue
-			}
-
-			err = s.executeTransfer(transferMsg)
-			if err != nil {
-				log.Printf("Error processing transfer: %v", err)
-			}
-			if err == nil {
-				transferLogger(transferMsg.SenderId, transferMsg.ToAccount, transferMsg.Amount)
-
-			}
-		}
-	}()
-
-	<-forever
-}
-
-func (s *ApiServer) executeTransfer(msg TransferMessage) error {
-	senderAccount, err := s.store.GetAccountById(msg.SenderId)
-	if err != nil {
-		er := s.store.UpdateTransferStatus(msg.TransferId, "failed")
-		if er != nil {
-			return er
-		}
-		return fmt.Errorf("failed to retrieve sender account: %v", err)
-	}
-
-	if senderAccount.Balance < msg.Amount {
-		er := s.store.UpdateTransferStatus(msg.TransferId, "failed")
-		if er != nil {
-			return er
-		}
-		return fmt.Errorf("insufficient balance in sender account")
-	}
-
-	recipientAccount, err := s.store.GetAccountById(msg.ToAccount)
-	if err != nil {
-		er := s.store.UpdateTransferStatus(msg.TransferId, "failed")
-		if er != nil {
-			return er
-		}
-		return fmt.Errorf("failed to retrieve recipient account: %v", err)
-	}
-
-	senderNewBalance := senderAccount.Balance - msg.Amount
-	err = s.store.UpdateBalance(msg.SenderId, senderNewBalance)
-	if err != nil {
-		er := s.store.UpdateTransferStatus(msg.TransferId, "failed")
-		if er != nil {
-			return er
-		}
-		return fmt.Errorf("failed to update sender account: %v", err)
-	}
-
-	recipientNewBalance := recipientAccount.Balance + msg.Amount
-	err = s.store.UpdateBalance(msg.ToAccount, recipientNewBalance)
-	if err != nil {
-		// Rollback
-		s.store.UpdateBalance(msg.SenderId, senderAccount.Balance)
-		return fmt.Errorf("failed to update recipient account: %v", err)
-	}
-	// update trx log
-	err = s.store.UpdateTransferStatus(msg.TransferId, "completed")
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.JSON(200, map[string]string{
+		"token": token,
+	})
 }
 
 func (s *ApiServer) getTransferStatus(c echo.Context) error {
@@ -306,12 +171,11 @@ func (s *ApiServer) getTransferStatus(c echo.Context) error {
 
 	trxid := c.Param("id")
 
-	status, err := s.store.GetTransferStatus(trxid)
+	status, err := s.transactionService.GetTransferStatus(trxid)
 	if err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": status})
-
 }
 
 func (s *ApiServer) JwtRoute(c echo.Context) error {

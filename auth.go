@@ -11,36 +11,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"golang.org/x/crypto/bcrypt"
 )
-
-func (s *ApiServer) handleLogin(c echo.Context) error {
-	payload := new(struct {
-		Id       int    `json:"id"`
-		Password string `json:"password"`
-	})
-	if err := c.Bind(payload); err != nil {
-		return err
-	}
-
-	user, err := s.store.GetAccountById(payload.Id)
-	if err != nil {
-		return err
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.EPassword), []byte(payload.Password)); err != nil {
-		return echo.ErrUnauthorized
-	}
-
-	token, err := generateJWT(user.Id)
-	if err != nil {
-		return err
-	}
-
-	return c.JSON(200, map[string]string{
-		"token": token,
-	})
-}
 
 func generateJWT(userId int) (string, error) {
 	claims := JWTClaims{
