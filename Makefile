@@ -1,8 +1,6 @@
-build: 
-	@go build -o bin/fastbank
 
-run: build
-	@./bin/fastbank
+run: 
+	@go run cmd/main.go
 
 test:
 	@go test -v ./...
