@@ -1,5 +1,6 @@
 # FastBank API
 
+(readme might be outdated as features are being added at lightspeed will update it asap)
 A lightweight, secure Golang bank API with JWT authentication and PostgreSQL.
 
 ## Description
