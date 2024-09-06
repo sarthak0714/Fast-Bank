@@ -17,6 +17,8 @@ func main() {
 	}
 	accService := NewAccountService(store)
 
+	authService := NewAuthService("SHHHHHH")
+
 	trxService, err := NewTransactionService(store, "amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		log.Fatal("1", err)
@@ -31,6 +33,6 @@ func main() {
    \ \_______\ \__\ \__\ \__\\ \__\ \__\\ \__\
     \|_______|\|__|\|__|\|__| \|__|\|__| \|__|
                                               `, colorReset)
-	server := NewApiServer(":8080", store, *accService, *trxService)
+	server := NewApiServer(":8080", store, *accService, *trxService, *authService)
 	server.Run()
 }

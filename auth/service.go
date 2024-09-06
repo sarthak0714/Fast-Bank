@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"errors"
@@ -8,17 +8,20 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type AuthService struct {
+type JWTService struct {
 	secretKey []byte
 }
 
-
-
-func NewAuthService(secretKey string) *AuthService {
-	return &AuthService{secretKey: []byte(secretKey)}
+type JWTClaims struct {
+	Id int `json:"id"`
+	jwt.RegisteredClaims
 }
 
-func (s *AuthService) GenerateJWT(userId int) (string, error) {
+func NewJWTService(secretKey string) *JWTService {
+	return &JWTService{secretKey: []byte(secretKey)}
+}
+
+func (s *JWTService) GenerateJWT(userId int) (string, error) {
 	claims := JWTClaims{
 		Id: userId,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -30,7 +33,7 @@ func (s *AuthService) GenerateJWT(userId int) (string, error) {
 	return token.SignedString(s.secretKey)
 }
 
-func (s *AuthService) ValidateJWT(tokenString string) (*JWTClaims, error) {
+func (s *JWTService) ValidateJWT(tokenString string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return s.secretKey, nil
 	})
@@ -46,7 +49,7 @@ func (s *AuthService) ValidateJWT(tokenString string) (*JWTClaims, error) {
 	return nil, errors.New("invalid token")
 }
 
-func (s *AuthService) JWTMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *JWTService) JWTMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authHeader := c.Request().Header.Get("Authorization")
 		if authHeader == "" {

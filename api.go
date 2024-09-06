@@ -18,14 +18,16 @@ type ApiServer struct {
 	store              Storage
 	accountService     *AccountService
 	transactionService *TransactionService
+	authService        *AuthService
 }
 
-func NewApiServer(addr string, store Storage, accService AccountService, trxService TransactionService) *ApiServer {
+func NewApiServer(addr string, store Storage, accService AccountService, trxService TransactionService, authService AuthService) *ApiServer {
 	return &ApiServer{
 		listenAddr:         addr,
 		store:              store,
 		accountService:     &accService,
 		transactionService: &trxService,
+		authService:        &authService,
 	}
 }
 
@@ -42,7 +44,7 @@ func (s *ApiServer) Run() {
 	e.POST("/login", s.handleLogin)
 
 	jwtGroup := e.Group("")
-	jwtGroup.Use(JWTMiddleware)
+	jwtGroup.Use(s.authService.JWTMiddleware)
 	jwtGroup.GET("/jwt", s.JwtRoute)
 	jwtGroup.GET("/account/:id", s.handleGetAccountById)
 	jwtGroup.DELETE("/account/:id", s.handleDeleteAccount)
@@ -153,7 +155,7 @@ func (s *ApiServer) handleLogin(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	token, err := generateJWT(user.Id)
+	token, err := s.authService.GenerateJWT(user.Id)
 	if err != nil {
 		return err
 	}

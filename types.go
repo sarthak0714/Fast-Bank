@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -29,8 +30,8 @@ type TransferReq struct {
 }
 
 type JWTClaims struct {
-	Id  int   `json:"id"`
-	Exp int64 `json:"exp"`
+	Id int `json:"id"`
+	jwt.RegisteredClaims
 }
 
 type TransferMessage struct {
@@ -38,7 +39,7 @@ type TransferMessage struct {
 	SenderId   int    `json:"sender_id"`
 	ToAccount  int    `json:"to_account"`
 	Amount     int64  `json:"amount"`
-	Status string `josn:"status"`
+	Status     string `josn:"status"`
 }
 
 func NewAccount(fName, lName, password string) (*Account, error) {
