@@ -29,8 +29,7 @@ func NewTransactionService(store port.StorageService, conn *amqp.Connection) por
 
 func (s *transactionService) PublishTransferMessage(msg domain.TransferMessage) error {
 
-	defer s.rabbitMQ.Close()
-
+	// defer s.rabbitMQ.Close() // Removed
 	ch, err := s.rabbitMQ.Channel()
 	if err != nil {
 		return err
@@ -72,8 +71,7 @@ func (s *transactionService) AddTransferRecord(msg *domain.TransferMessage) erro
 }
 
 func (s *transactionService) ProcessTransfers() {
-
-	defer s.rabbitMQ.Close()
+	// defer s.rabbitMQ.Close() // Removed to keep the connection open
 
 	ch, err := s.rabbitMQ.Channel()
 	if err != nil {
@@ -156,24 +154,11 @@ func (s *transactionService) ExecuteTransfer(msg domain.TransferMessage) error {
 		}
 		return fmt.Errorf("failed to retrieve recipient account: %v", err)
 	}
-
-	senderNewBalance := senderAccount.Balance - msg.Amount
-	err = s.store.UpdateBalance(msg.SenderId, senderNewBalance)
-	if err != nil {
-		er := s.store.UpdateTransferStatus(msg.TransferId, "failed")
-		if er != nil {
-			return er
-		}
-		return fmt.Errorf("failed to update sender account: %v", err)
+	// proper trx
+	if err := s.store.Transcation(senderAccount, recipientAccount, &msg); err != nil {
+		return err
 	}
 
-	recipientNewBalance := recipientAccount.Balance + msg.Amount
-	err = s.store.UpdateBalance(msg.ToAccount, recipientNewBalance)
-	if err != nil {
-		// Rollback
-		s.store.UpdateBalance(msg.SenderId, senderAccount.Balance)
-		return fmt.Errorf("failed to update recipient account: %v", err)
-	}
 	// update trx log
 	err = s.store.UpdateTransferStatus(msg.TransferId, "completed")
 	if err != nil {

@@ -12,8 +12,5 @@ type StorageService interface {
 	AddTransfer(*domain.TransferMessage) error
 	GetTransferStatus(string) (string, error)
 	UpdateTransferStatus(string, string) error
-}
-
-type MQService struct {
-	
+	Transcation(*domain.Account, *domain.Account, *domain.TransferMessage) error
 }

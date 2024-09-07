@@ -22,6 +22,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if err := store.Init(); err != nil {
+		log.Fatal(err)
+
+	}
 	conn, err := repository.NewMQConnection(cfg.AmqConnectionStr)
 	if err != nil {
 		log.Fatal(err)

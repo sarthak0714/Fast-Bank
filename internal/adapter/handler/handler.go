@@ -2,8 +2,10 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -36,6 +38,11 @@ func (s *ApiHandler) HandleGetAccount(c echo.Context) error {
 
 func (s *ApiHandler) HandleGetAccountById(c echo.Context) error {
 	id := c.Param("id")
+	claims, _ := c.Get("user").(*domain.JWTClaims)
+	if strconv.Itoa(claims.Id) != id {
+		return echo.ErrUnauthorized
+	}
+
 	acc, err := s.AccountService.GetById(id)
 	if err != nil {
 		return err
@@ -87,12 +94,14 @@ func (s *ApiHandler) HandleTransfer(c echo.Context) error {
 		ToAccount:  toId,
 		Amount:     transferReq.Amount,
 		Status:     "pending",
+		CreatedAt:  time.Now().UTC(),
+		UpdatedAt:  time.Now().UTC(),
 	}
 
 	// Publish
 	err := s.TransactionService.PublishTransferMessage(transferMsg)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to initiate transfer")
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprint("Failed to initiate transfer:", err))
 	}
 
 	err = s.TransactionService.AddTransferRecord(&transferMsg)
