@@ -7,6 +7,10 @@ A lightweight, secure Golang bank API with JWT authentication and PostgreSQL.
 
 FastBank API implements a basic banking system using Go and echo. It provides essential operations such as account creation, balance inquiries, and fund transfers. The API uses JWT for secure authentication and PostgreSQL for persistent data storage. Designed with simplicity and security in mind, it serves as an excellent starting point for building more complex financial applications or learning about API development in Go. 
 
+## (ARCH)
+![SysDesign](./newarch.png)
+
+
 ## Features
 
 - Account creation and management
@@ -54,8 +58,6 @@ FastBank API implements a basic banking system using Go and echo. It provides es
 - JWT used for API authentication
 - HTTPS recommended for production use
 
-## (SUPPOSED DESIGN)
-![SysDesign](./FastBankSD.png)
 
 ## Contributing
 
