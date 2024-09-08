@@ -13,8 +13,8 @@ type PGStore struct {
 	db *gorm.DB
 }
 
-func NewPGStore() (*PGStore, error) {
-	dsn := "host=localhost user=postgres dbname=postgres password=jomum port=5432 sslmode=disable"
+func NewPGStore(dsn string) (*PGStore, error) {
+	// dsn := "host=localhost user=postgres dbname=postgres password=jomum port=5432 sslmode=disable"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err

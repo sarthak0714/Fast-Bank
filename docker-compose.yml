@@ -1,0 +1,45 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy 
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - AMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - PORT=8080
+      - JWT_SECRET=SHHHHHHHH
+      - DB_URL=host=db user=postgres dbname=postgres password=jomum port=5432 sslmode=disable
+
+  db:
+    image: postgres:alpine
+    environment: 
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: jomum
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck: 
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

@@ -18,7 +18,7 @@ import (
 func main() {
 
 	cfg := config.LoadConfig()
-	store, err := repository.NewPGStore()
+	store, err := repository.NewPGStore(cfg.DBConnectionStr)
 	if err != nil {
 		log.Fatal(err)
 	}

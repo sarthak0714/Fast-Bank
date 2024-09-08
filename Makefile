@@ -14,3 +14,15 @@ dbinit:
 
 mqinit:
 	@sudo docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+
+docker-build:
+	docker build -t fastbank-api .
+
+docker-run:
+	docker run -p 8080:8080 --name fastbank-container fastbank-api
+
+docker-compose-up:
+	docker-compose up -d
+
+docker-compose-down:
+	docker-compose down
