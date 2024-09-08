@@ -8,6 +8,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sarthak014/Fast-Bank/internal/adapter/handler"
 	"github.com/sarthak014/Fast-Bank/internal/adapter/repository"
 	"github.com/sarthak014/Fast-Bank/internal/config"
@@ -38,7 +40,7 @@ func main() {
 	h := handler.NewApiHandler(accService, trxService, authService)
 
 	e := echo.New()
-	e.Use(utils.CustomLogger()) // new
+	e.Use(utils.CustomLogger(httpRequestsTotal))
 	e.Use(middleware.Recover())
 
 	e.GET("/", func(c echo.Context) error {
@@ -56,6 +58,7 @@ func main() {
 	jwtGroup.POST("/transfer/:accno", h.HandleTransfer)
 	jwtGroup.GET("/transfer/:id", h.GetTransferStatus)
 	e.HideBanner = true
+	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
 	go h.TransactionService.ProcessTransfers()
 	fmt.Println("\033[32m",
@@ -68,4 +71,18 @@ func main() {
     \|_______|\|__|\|__|\|__| \|__|\|__| \|__|
                                               `, "\033[0m")
 	log.Fatal(e.Start(cfg.Port))
+}
+
+var (
+	httpRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"method", "endpoint", "status"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(httpRequestsTotal)
 }

@@ -2,9 +2,11 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -37,7 +39,7 @@ func statusColor(code int) string {
 	}
 }
 
-func CustomLogger() echo.MiddlewareFunc {
+func CustomLogger(httpRequestsTotal *prometheus.CounterVec) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			start := time.Now()
@@ -65,6 +67,9 @@ func CustomLogger() echo.MiddlewareFunc {
 			)
 
 			fmt.Println(logMessage)
+
+			// Update Prometheus metrics
+			httpRequestsTotal.WithLabelValues(req.Method, req.URL.Path, strconv.Itoa(res.Status)).Inc()
 
 			return nil
 		}
