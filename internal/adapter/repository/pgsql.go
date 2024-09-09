@@ -53,6 +53,12 @@ func (s *PGStore) GetAccountById(id int) (*domain.Account, error) {
 	return &acc, err
 }
 
+func (s *PGStore) GetAccountByAccNo(accNo int) (*domain.Account, error) {
+	var acc domain.Account
+	err := s.db.Where("ac_number = ?", accNo).First(&acc).Error
+	return &acc, err
+}
+
 func (s *PGStore) GetAccounts() ([]*domain.Account, error) {
 	var accounts []*domain.Account
 	err := s.db.Find(&accounts).Error
@@ -80,7 +86,7 @@ func (s *PGStore) Transcation(senderAccount, recipientAccount *domain.Account, m
 	tx := s.db.Begin()
 
 	senderNewBalance := senderAccount.Balance - msg.Amount
-	err := tx.Model(&domain.Account{}).Where("id = ?", msg.SenderId).Update("balance", senderNewBalance).Error //s.UpdateBalance(msg.SenderId, senderNewBalance)
+	err := tx.Model(&domain.Account{}).Where("ac_number = ?", senderAccount.AcNumber).Update("balance", senderNewBalance).Error //s.UpdateBalance(msg.SenderId, senderNewBalance)
 	if err != nil {
 		tx.Rollback()
 		er := s.UpdateTransferStatus(msg.TransferId, "failed")
@@ -91,7 +97,7 @@ func (s *PGStore) Transcation(senderAccount, recipientAccount *domain.Account, m
 	}
 
 	recipientNewBalance := recipientAccount.Balance + msg.Amount
-	err = tx.Model(&domain.Account{}).Where("id = ?", recipientAccount.Id).Update("balance", recipientNewBalance).Error //.UpdateBalance(msg.ToAccount, recipientNewBalance)
+	err = tx.Model(&domain.Account{}).Where("ac_number = ?", recipientAccount.AcNumber).Update("balance", recipientNewBalance).Error //.UpdateBalance(msg.ToAccount, recipientNewBalance)
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("failed to update recipient account: %v", err)

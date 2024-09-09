@@ -21,8 +21,11 @@ docker-build:
 docker-run:
 	docker run -p 8080:8080 --name fastbank-container fastbank-api
 
-docker-compose-up:
+dcu:
 	docker-compose up -d
 
-docker-compose-down:
+dcub:
+	docker-compose up --build -d
+
+dcd:
 	docker-compose down

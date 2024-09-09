@@ -11,6 +11,7 @@ type AccountService interface {
 	// Update(*domain.Account) error
 	GetAll() ([]*domain.Account, error)
 	GetById(string) (*domain.Account, error)
+	GetByAccNo(int) (*domain.Account, error)
 }
 
 type TransactionService interface {

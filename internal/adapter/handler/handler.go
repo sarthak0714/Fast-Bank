@@ -39,11 +39,11 @@ func (s *ApiHandler) HandleGetAccount(c echo.Context) error {
 func (s *ApiHandler) HandleGetAccountById(c echo.Context) error {
 	id := c.Param("id")
 	claims, _ := c.Get("user").(*domain.JWTClaims)
-	if strconv.Itoa(claims.Id) != id {
+	if id != strconv.Itoa(claims.Id) {
 		return echo.ErrUnauthorized
 	}
 
-	acc, err := s.AccountService.GetById(id)
+	acc, err := s.AccountService.GetByAccNo(claims.Id)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (s *ApiHandler) HandleTransfer(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	senderId := claims.Id
+	senderId := claims.Id //claims.Id
 
 	// Create transfer message
 	transferMsg := domain.TransferMessage{
@@ -123,7 +123,7 @@ func (s *ApiHandler) HandleLogin(c echo.Context) error {
 	if err := c.Bind(payload); err != nil {
 		return err
 	}
-	user, err := s.AccountService.GetById(strconv.Itoa(payload.Id))
+	user, err := s.AccountService.GetByAccNo(payload.Id)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (s *ApiHandler) HandleLogin(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	token, err := s.AuthService.Generate(user.Id)
+	token, err := s.AuthService.Generate(int(user.AcNumber))
 	if err != nil {
 		return err
 	}

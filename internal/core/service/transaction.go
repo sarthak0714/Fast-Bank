@@ -129,7 +129,7 @@ func (s *transactionService) ProcessTransfers() {
 }
 
 func (s *transactionService) ExecuteTransfer(msg domain.TransferMessage) error {
-	senderAccount, err := s.store.GetAccountById(msg.SenderId)
+	senderAccount, err := s.store.GetAccountByAccNo(msg.SenderId)
 	if err != nil {
 		er := s.store.UpdateTransferStatus(msg.TransferId, "failed")
 		if er != nil {
@@ -146,7 +146,7 @@ func (s *transactionService) ExecuteTransfer(msg domain.TransferMessage) error {
 		return fmt.Errorf("insufficient balance in sender account")
 	}
 
-	recipientAccount, err := s.store.GetAccountById(msg.ToAccount)
+	recipientAccount, err := s.store.GetAccountByAccNo(msg.ToAccount)
 	if err != nil {
 		er := s.store.UpdateTransferStatus(msg.TransferId, "failed")
 		if er != nil {

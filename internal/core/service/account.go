@@ -33,6 +33,10 @@ func (s *accountService) GetById(id string) (*domain.Account, error) {
 	return s.store.GetAccountById(accountId)
 }
 
+func (s *accountService) GetByAccNo(accNo int) (*domain.Account, error) {
+	return s.store.GetAccountByAccNo(accNo)
+}
+
 func (s *accountService) Create(req *domain.CreateAccountReq) (*domain.Account, error) {
 	acc, err := NewAccount(req.Fname, req.Lname, req.Password)
 	if err != nil {
@@ -53,6 +57,16 @@ func (s *accountService) Delete(id string) error {
 }
 
 func NewAccount(fName, lName, password string) (*domain.Account, error) {
+	if fName == "" {
+		return nil, fmt.Errorf("first name is required")
+	}
+	if lName == "" {
+		return nil, fmt.Errorf("last name is required")
+	}
+	if password == "" {
+		return nil, fmt.Errorf("password is required")
+	}
+
 	encpw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -61,7 +75,7 @@ func NewAccount(fName, lName, password string) (*domain.Account, error) {
 		Fname:     fName,
 		Lname:     lName,
 		EPassword: string(encpw),
-		AcNumber:  int64(rand.Intn(1000000)),
+		AcNumber:  rand.Int31n(100000),
 		Balance:   1000,
 		CreatedAt: time.Now().UTC(),
 	}, nil

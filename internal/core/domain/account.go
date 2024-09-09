@@ -3,13 +3,13 @@ package domain
 import "time"
 
 type Account struct {
-	Id        int       `json:"id"`
-	Fname     string    `json:"fname"`
-	Lname     string    `json:"lanme"`
-	EPassword string    `json:"epassword"`
-	AcNumber  int64     `json:"ac_number"`
-	Balance   int64     `json:"balance"`
-	CreatedAt time.Time `json:"created_at"`
+	Id        int       `json:"id" gorm:"primaryKey;autoIncrement"`
+	Fname     string    `json:"fname" gorm:"type:varchar(100);not null"`
+	Lname     string    `json:"lname" gorm:"type:varchar(100);not null"`
+	EPassword string    `json:"epassword" gorm:"type:varchar(255);not null"`
+	AcNumber  int32     `json:"ac_number" gorm:"unique;not null"`
+	Balance   int64     `json:"balance" gorm:"not null;default:1000"`
+	CreatedAt time.Time `json:"created_at" gorm:"type:timestamp;default:current_timestamp"`
 }
 
 type CreateAccountReq struct {
