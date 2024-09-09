@@ -15,7 +15,7 @@ A high-performance, secure banking API built with Go, featuring real-time transa
 
 ![FastBank Architecture](./newarch.png)
 
-Our architecture ensures high availability, fault tolerance, and easy scalability.
+This architecture ensures high availability, fault tolerance, and easy scalability.
 
 ## 🛠️ Tech Stack
 
@@ -28,7 +28,8 @@ Our architecture ensures high availability, fault tolerance, and easy scalabilit
 ## 🚦 API Endpoints
 
 - `POST /account`: Create new account
-- `GET /account`: List accounts (Auth required)
+- `GET /account`: List accounts 
+- `GET /login`: Authenticate and receive JWT 
 - `POST /transfer/:accno`: Execute fund transfer (Auth required)
 - `GET /transfer/:id`: Check transfer status (Auth required)
 
@@ -41,7 +42,7 @@ Our architecture ensures high availability, fault tolerance, and easy scalabilit
 ## 📊 Monitoring & Logging
 
 - Access Prometheus metrics at `/metrics`
-- View colorized logs for real-time system insights
+- View logs for real-time system insights
 
 ## 🛡️ Security Features
 
@@ -59,13 +60,11 @@ Our architecture ensures high availability, fault tolerance, and easy scalabilit
 ## 🐳 Docker Commands
 
 - `make docker-build`: Build FastBank image
-- `make dcu`: Spin up all services
+- `make dcu`: Spin up all services (docker compose up)
+- `make dcub`: Build and Spin up all services (docker compose up build)
 - `make dcd`: Tear down the stack
 
 ## 🤝 Contributing
 
 We welcome contributions! Please check our contribution guidelines before submitting PRs.
 
-## 📄 License
-
-FastBank API is MIT licensed.
