@@ -38,7 +38,7 @@ func (s *accountService) GetByAccNo(accNo int) (*domain.Account, error) {
 }
 
 func (s *accountService) Create(req *domain.CreateAccountReq) (*domain.Account, error) {
-	acc, err := NewAccount(req.Fname, req.Lname, req.Password)
+	acc, err := NewAccount(req.Fname, req.Lname, req.Email, req.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (s *accountService) Delete(id string) error {
 	return s.store.DeleteAccount(accountId)
 }
 
-func NewAccount(fName, lName, password string) (*domain.Account, error) {
+func NewAccount(fName, lName, email, password string) (*domain.Account, error) {
 	if fName == "" {
 		return nil, fmt.Errorf("first name is required")
 	}
@@ -65,6 +65,9 @@ func NewAccount(fName, lName, password string) (*domain.Account, error) {
 	}
 	if password == "" {
 		return nil, fmt.Errorf("password is required")
+	}
+	if email == "" {
+		return nil, fmt.Errorf("email is required")
 	}
 
 	encpw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -75,6 +78,7 @@ func NewAccount(fName, lName, password string) (*domain.Account, error) {
 		Fname:     fName,
 		Lname:     lName,
 		EPassword: string(encpw),
+		Email:     email,
 		AcNumber:  rand.Int31n(100000),
 		Balance:   1000,
 		CreatedAt: time.Now().UTC(),
