@@ -164,3 +164,16 @@ func (s *ApiHandler) JwtRoute(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, claims)
 }
+
+func (s *ApiHandler) GetTrxByAcc(c echo.Context) error {
+	claims, ok := c.Get("user").(*domain.JWTClaims)
+	if !ok {
+		return errors.New("failed to get user claims")
+	}
+	trxs, err := s.TransactionService.GetByAccNo(claims.Id)
+	if err != nil {
+		return errors.New("failed to get user transactions")
+	}
+
+	return c.JSON(http.StatusOK, trxs)
+}

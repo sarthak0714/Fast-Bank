@@ -128,6 +128,10 @@ func (s *transactionService) ProcessTransfers() {
 	<-forever
 }
 
+func (s *transactionService) GetByAccNo(accNo int) ([]*domain.TransferMessage, error) {
+	return s.store.GetTransactionsByAccNo(accNo)
+}
+
 func (s *transactionService) ExecuteTransfer(msg domain.TransferMessage) error {
 	senderAccount, err := s.store.GetAccountByAccNo(msg.SenderId)
 	if err != nil {

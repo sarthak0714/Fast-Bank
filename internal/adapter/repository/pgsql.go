@@ -82,6 +82,16 @@ func (s *PGStore) UpdateTransferStatus(trxid, status string) error {
 	return s.db.Model(&domain.TransferMessage{}).Where("transfer_id = ?", trxid).Updates(map[string]interface{}{"status": status, "updated_at": time.Now().UTC()}).Error
 }
 
+func (s *PGStore) GetTransactionsByAccNo(accNo int) ([]*domain.TransferMessage, error) {
+	var trxs []*domain.TransferMessage
+	err := s.db.Where("ac_number = ?", accNo).Find(&trxs).Error
+	if err != nil {
+		return nil, err
+	}
+	return trxs, nil
+
+}
+
 func (s *PGStore) Transcation(senderAccount, recipientAccount *domain.Account, msg *domain.TransferMessage) error {
 	tx := s.db.Begin()
 

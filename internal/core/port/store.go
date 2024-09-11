@@ -13,5 +13,6 @@ type StorageService interface {
 	AddTransfer(*domain.TransferMessage) error
 	GetTransferStatus(string) (string, error)
 	UpdateTransferStatus(string, string) error
+	GetTransactionsByAccNo(int) ([]*domain.TransferMessage, error)
 	Transcation(*domain.Account, *domain.Account, *domain.TransferMessage) error
 }

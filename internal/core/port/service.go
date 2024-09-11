@@ -19,6 +19,7 @@ type TransactionService interface {
 	GetTransferStatus(string) (string, error)
 	ExecuteTransfer(domain.TransferMessage) error
 	AddTransferRecord(*domain.TransferMessage) error
+	GetByAccNo(int) ([]*domain.TransferMessage, error)
 	ProcessTransfers()
 }
 

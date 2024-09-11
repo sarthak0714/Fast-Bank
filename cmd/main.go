@@ -57,6 +57,7 @@ func main() {
 	jwtGroup.DELETE("/account/:id", h.HandleDeleteAccount)
 	jwtGroup.POST("/transfer/:accno", h.HandleTransfer)
 	jwtGroup.GET("/transfer/:id", h.GetTransferStatus)
+	jwtGroup.GET("/transfer", h.GetTrxByAcc)
 	e.HideBanner = true
 	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
